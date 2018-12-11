@@ -35,17 +35,7 @@ namespace SSMS2017_AddIn
 
         private void Item_Click(object sender, System.EventArgs e)
         {
-            var navigableItem = (INavigableItem)this.Parent.GetType()
-                .GetProperty("NavigableItem", BindingFlags.NonPublic | BindingFlags.Instance)
-                ?.GetValue(this.Parent);
-            TreeNode treeNode = null;
-            for (var i = 0; i < this.treeView.Nodes.Count; i++)
-            {
-                if (navigableItem != null && this.treeView.Nodes[i].Text == navigableItem.DisplayName)
-                {
-                    treeNode = this.treeView.Nodes[i];
-                }
-            }
+            TreeNode treeNode = treeView.SelectedNode;
             if (treeNode != null)
             {
                 string input =
