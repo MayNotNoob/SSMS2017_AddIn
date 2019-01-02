@@ -5,13 +5,16 @@
 //------------------------------------------------------------------------------
 
 using System;
-using System.ComponentModel.Design;
 using System.Reflection;
+using System.Text;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.SqlServer.Management.SqlStudio.Explorer;
 using Microsoft.SqlServer.Management;
 using Microsoft.SqlServer.Management.UI.VSIntegration.ObjectExplorer;
 using System.Windows.Forms;
+using EnvDTE;
+using EnvDTE80;
+using Microsoft.VisualStudio.CommandBars;
 
 namespace SSMS2017_AddIn
 {
@@ -21,28 +24,14 @@ namespace SSMS2017_AddIn
     internal sealed class Scriptor
     {
         /// <summary>
-        /// Command ID.
-        /// </summary>
-        public const int CommandId = 0x0100;
-
-        /// <summary>
-        /// Command menu group (command set GUID).
-        /// </summary>
-        public static readonly Guid CommandSet = new Guid("e658de75-add3-4bcb-9013-4fd905b55a59");
-
-        /// <summary>
         /// VS Package that provides this command, not null.
         /// </summary>
         private readonly Package package;
 
-
-        private CommandID menuCommandID;
-        private MenuCommand menuItem;
-        private ContextService contextService;
+        private readonly ContextService contextService;
         private static bool IsTableMenuAdded = false;
         private static bool IsColumnMenuAdded = false;
         private static bool IsServerMenuAdded = false;
-        private static HierarchyObject tableMenu = null;
         /// <summary>
         /// Initializes a new instance of the <see cref="Scriptor"/> class.
         /// Adds our command handlers for menu (commands must exist in the command table file)
@@ -56,17 +45,9 @@ namespace SSMS2017_AddIn
             }
 
             this.package = package;
-
-            var commandService = (OleMenuCommandService)this.ServiceProvider.GetService(typeof(IMenuCommandService));
-
-            if (commandService != null)
-            {
-                //menuCommandID = new CommandID(CommandSet, CommandId);
-                //menuItem = new MenuCommand(this.MenuItemCallback, menuCommandID);
-                //commandService.AddCommand(menuItem);
-                contextService = (ContextService)this.ServiceProvider.GetService(typeof(IContextService));
-                contextService.ActionContext.CurrentContextChanged += ActionContextOnCurrentContextChanged;
-            }
+            AddWindowMenu();
+            contextService = (ContextService)this.ServiceProvider.GetService(typeof(IContextService));
+            contextService.ActionContext.CurrentContextChanged += ActionContextOnCurrentContextChanged;
         }
 
         /// <summary>
@@ -81,14 +62,9 @@ namespace SSMS2017_AddIn
         /// <summary>
         /// Gets the service provider from the owner package.
         /// </summary>
-        private IServiceProvider ServiceProvider
-        {
-            get
-            {
-                return this.package;
-            }
-        }
+        private IServiceProvider ServiceProvider => this.package;
 
+        private DTE2 Dte => (DTE2)this.ServiceProvider.GetService(typeof(DTE));
         /// <summary>
         /// Initializes the singleton instance of the command.
         /// </summary>
@@ -98,53 +74,78 @@ namespace SSMS2017_AddIn
             Instance = new Scriptor(package);
         }
 
-        /// <summary>
-        /// This function is the callback used to execute the command when the menu item is clicked.
-        /// See the constructor to see how the menu item is associated with this function using
-        /// OleMenuCommandService service and MenuCommand class.
-        /// </summary>
-        /// <param name="sender">Event sender.</param>
-        /// <param name="e">Event args.</param>
-        private void MenuItemCallback(object sender, EventArgs e)
+        private void AddWindowMenu()
         {
-            //var commandService = (OleMenuCommandService)this.ServiceProvider.GetService(typeof(IMenuCommandService));
-            //commandService.RemoveCommand(menuItem);
-            //contextService = (ContextService)this.ServiceProvider.GetService(typeof(IContextService));
-            //contextService.ActionContext.CurrentContextChanged += ActionContextOnCurrentContextChanged;
+            var commandBars = (CommandBars)Dte.CommandBars;
+            CommandBar tabContext = commandBars["SQL Files Editor Context"];
+            var btnScripts =
+                tabContext.Controls.Add(MsoControlType.msoControlButton, Type.Missing, Type.Missing, Type.Missing, true)
+                    as CommandBarButton;
+            if (btnScripts != null)
+            {
+                btnScripts.Caption = "Curve Name Scripts";
+                btnScripts.Click += (CommandBarButton ctrl, ref bool cancelDefault) =>
+                {
+                    var doc = (TextDocument)this.Dte.ActiveDocument.Object("TextDocument");
+                    var content = doc.StartPoint.CreateEditPoint().GetText(doc.EndPoint);
+                    if (!string.IsNullOrEmpty(content))
+                    {
+                        content = content.Replace("\r", "");
+                        var arr = content.Split('\n');
+                        StringBuilder builder = new StringBuilder();
+                        foreach (string s in arr)
+                        {
+                            var arr2 = s.Split(',');
+                            if (arr2.Length == 2)
+                            {
+                                builder.AppendLine("INSERT INTO [ESTRADE].[dbo].[CurlingCurveNameMatching] VALUES ('" + arr2[1] + "','" + arr2[1] + "','NN')");
+                                builder.AppendLine("INSERT INTO [ESTRADE].[dbo].[CurlingCurveIdMatching] VALUES ('" + arr2[0] + "','" + arr2[1] + "')");
+                                builder.AppendLine("INSERT INTO [ESTRADE].[dbo].[CurlingCurveHeader] VALUES ('" + arr2[1] + "','EUR','',1,1)");
+                            }
+                        }
+                        if (builder.Length > 0)
+                        {
+                            doc.StartPoint.CreateEditPoint().Delete(doc.EndPoint);
+                            content = "/*\n" + content + "\n*/\n" + builder;
+                            doc.EndPoint.CreateEditPoint().Insert(content);
+                        }
+                    }
+                };
+            }
         }
-     
+
         private void ActionContextOnCurrentContextChanged(object sender, EventArgs e)
         {
             try
             {
                 INodeInformation[] nodes;
-                INodeInformation node;
                 int nodeCount;
                 IObjectExplorerService objectExplorer = (ObjectExplorerService)this.ServiceProvider.GetService(typeof(IObjectExplorerService));
                 objectExplorer.GetSelectedNodes(out nodeCount, out nodes);
-                node = nodeCount > 0 ? nodes[0] : null;
+                var node = nodeCount > 0 ? nodes[0] : null;
                 if (node != null)
                 {
                     if (node.Parent != null && node.Parent.InvariantName == "UserTables")
                     {
                         if (!IsTableMenuAdded)
                         {
-                            tableMenu = (HierarchyObject)node.GetService(typeof(IMenuHandler));
-                            SqlTableMenuItem item = new SqlTableMenuItem(ScriptorPackage.applicationObject);
+                            var tableMenu = (HierarchyObject)node.GetService(typeof(IMenuHandler));
+                            var item = new SqlTableMenuItem(ScriptorPackage.applicationObject);
                             tableMenu.AddChild(string.Empty, item);
                             IsTableMenuAdded = true;
                         }
                     }
-                    else if (node.UrnPath == "Server")
+                    else
+                    if (node.UrnPath == "Server")
                     {
                         if (!IsServerMenuAdded)
                         {
-                            tableMenu = (HierarchyObject)node.GetService(typeof(IMenuHandler));
+                            var tableMenu = (HierarchyObject)node.GetService(typeof(IMenuHandler));
                             var treeViewProp = objectExplorer.GetType().GetProperty("Tree", BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.IgnoreCase);
                             if (treeViewProp != null)
                             {
                                 var treeView = (TreeView)treeViewProp.GetValue(objectExplorer, null);
-                                ServerMenuItem item = new ServerMenuItem(treeView);
+                                var item = new ServerMenuItem(treeView);
                                 tableMenu.AddChild(string.Empty, item);
                             }
                             IsServerMenuAdded = true;
@@ -159,6 +160,5 @@ namespace SSMS2017_AddIn
                 MessageBox.Show(objectExplorerContextException.Message);
             }
         }
-
     }
 }

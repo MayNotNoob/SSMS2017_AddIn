@@ -48,19 +48,8 @@ namespace SSMS2017_AddIn
         /// </summary>
         public const string PackageGuidString = "514c27e3-bc7d-4f8b-a3b7-0b6c89e3e82c";
         public static DTE2 applicationObject;
-
         private static DteInitializer dteInitializer;
-        /// <summary>
-        /// Initializes a new instance of the <see cref="Scriptor"/> class.
-        /// </summary>
-        public ScriptorPackage()
-        {
-            // Inside this method you can place any initialization code that does not require
-            // any Visual Studio service because at this point the package object is created but
-            // not sited yet inside Visual Studio environment. The place to do all the other
-            // initialization is the Initialize method.
-
-        }
+    
         #region Package Members
 
         /// <summary>
@@ -89,36 +78,31 @@ namespace SSMS2017_AddIn
 
         internal class DteInitializer : IVsShellPropertyEvents
         {
-            private IVsShell shellService;
+            private readonly IVsShell shellService;
             private uint cookie;
-            private Action callback;
+            private readonly Action callback;
 
             internal DteInitializer(IVsShell shellService, Action callback)
             {
-                int hr;
-
                 this.shellService = shellService;
                 this.callback = callback;
 
                 // Set an event handler to detect when the IDE is fully initialized
-                hr = this.shellService.AdviseShellPropertyChanges(this, out this.cookie);
+                var hr = this.shellService.AdviseShellPropertyChanges(this, out this.cookie);
 
                 ErrorHandler.ThrowOnFailure(hr);
             }
 
             int IVsShellPropertyEvents.OnShellPropertyChange(int propid, object var)
             {
-                int hr;
-                bool isZombie;
-
                 if (propid == (int)__VSSPROPID.VSSPROPID_Zombie)
                 {
-                    isZombie = (bool)var;
+                    var isZombie = (bool)var;
 
                     if (!isZombie)
                     {
                         // Release the event handler to detect when the IDE is fully initialized
-                        hr = this.shellService.UnadviseShellPropertyChanges(this.cookie);
+                        var hr = this.shellService.UnadviseShellPropertyChanges(this.cookie);
 
                         ErrorHandler.ThrowOnFailure(hr);
 
@@ -135,13 +119,11 @@ namespace SSMS2017_AddIn
         /// </summary>
         private void InitializeDTE()
         {
-            IVsShell shellService;
-
             applicationObject = this.GetService(typeof(SDTE)) as EnvDTE80.DTE2;
 
             if (applicationObject == null) // The IDE is not yet fully initialized
             {
-                shellService = this.GetService(typeof(SVsShell)) as IVsShell;
+                var shellService = this.GetService(typeof(SVsShell)) as IVsShell;
                 dteInitializer = new DteInitializer(shellService, this.InitializeDTE);
             }
             else

@@ -3,6 +3,7 @@ using EnvDTE80;
 using Microsoft.SqlServer.Management.UI.VSIntegration;
 using System;
 using System.Text;
+using Microsoft.SqlServer.Management.UI.VSIntegration.Editors;
 
 namespace SSMS2017_AddIn
 {
@@ -92,11 +93,9 @@ namespace SSMS2017_AddIn
         /// <param name="buffer"></param>
         public void CreateNewScriptWindow(StringBuilder buffer)
         {
-            ServiceCache.ScriptFactory.CreateNewBlankScript(Microsoft.SqlServer.Management.UI.VSIntegration.Editors.ScriptType.Sql);
-
+            ServiceCache.ScriptFactory.CreateNewBlankScript(ScriptType.Sql);
             // insert SQL definition to document
-            EnvDTE.TextDocument doc = (EnvDTE.TextDocument)ServiceCache.ExtensibilityModel.Application.ActiveDocument.Object(null);
-
+            var doc = (TextDocument)ServiceCache.ExtensibilityModel.Application.ActiveDocument.Object(null);
             doc.EndPoint.CreateEditPoint().Insert(buffer.ToString());
         }
 

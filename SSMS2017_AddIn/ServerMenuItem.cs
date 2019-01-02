@@ -1,6 +1,4 @@
-﻿using System.Linq;
-using System.Reflection;
-using System.Windows.Forms;
+﻿using System.Windows.Forms;
 using Microsoft.SqlServer.Management.UI.VSIntegration.ObjectExplorer;
 
 namespace SSMS2017_AddIn
@@ -9,7 +7,7 @@ namespace SSMS2017_AddIn
     {
         //private INodeInformation node;
 
-        private TreeView treeView;
+        private readonly TreeView treeView;
 
         public ServerMenuItem(TreeView treeView)
         {
