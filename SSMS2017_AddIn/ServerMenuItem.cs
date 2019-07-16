@@ -1,4 +1,5 @@
-﻿using System.Windows.Forms;
+﻿using System;
+using System.Windows.Forms;
 using Microsoft.SqlServer.Management.UI.VSIntegration.ObjectExplorer;
 
 namespace SSMS2017_AddIn
@@ -40,6 +41,8 @@ namespace SSMS2017_AddIn
                     Microsoft.VisualBasic.Interaction.InputBox("Please input a name", "Rename node");
                 if (!string.IsNullOrEmpty(input))
                 {
+                    if (treeNode.Tag == null || String.IsNullOrEmpty(treeNode.Tag.ToString()))
+                        treeNode.Tag = treeNode.Text;
                     treeNode.Text = input.ToUpper();
                 }
             }
