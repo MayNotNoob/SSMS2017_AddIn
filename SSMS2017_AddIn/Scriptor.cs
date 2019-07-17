@@ -211,7 +211,7 @@ namespace SSMS2017_AddIn
                     {
                         filteredNodes.ForEach(n =>
                         {
-                            if (n.Text.Contains(text))
+                            if (n.Text.ToLower().Contains(text))
                             {
                                 selectedNode.Nodes.Add(n);
                             }
@@ -252,6 +252,7 @@ namespace SSMS2017_AddIn
 
         private async void FilterDataBase(Object sender, TreeViewEventArgs args)
         {
+            ((TreeView)sender).SelectedNode = args.Node;
             if (args.Node.Text.StartsWith("Databases"))
             {
                 await System.Threading.Tasks.Task.Delay(100);
